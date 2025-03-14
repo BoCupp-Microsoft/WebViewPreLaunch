@@ -39,3 +39,5 @@ webview_prelaunch_controller->WaitForPreLaunch();
 // Create your own WV2
 ```
 
+## Additional Notes
+The profile name which can be specified during controller creation does not need to align with the pre-launched process tree.  The browser process of WebView2 can handle multiple profiles simultaneously.
