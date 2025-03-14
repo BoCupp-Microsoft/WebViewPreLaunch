@@ -15,11 +15,41 @@ It relies on a feature of WebView2 which shares a browser process tree for each 
 For each new host that shares the user data directory, only a new Renderer process will be created to execute that app's unique JS.  In the browser process, a new HWND will be created where the visuals from that Renderer process can be presented.  That new HWND will be parented to an HWND created by the app host.  This is roughly equivalent to having a browser with multiple "torn off" tabs.
 
 ## Browser-startup Args
-To share the browser process, we not only need to share the same user data directory but also the arguments supplied to the browser process via the additional browser args option.  If the arguments are not identitical, the host won't be able to create their own instance of WebView2 to attach to the pre-existing WebView2 process tree.
+To share the browser process, we not only need to share the same user data directory but also the arguments supplied to the browser process via the additional browser args option.  If the environment arguments are not identitical, the host won't be able to create their own instance of WebView2 to attach to the pre-existing WebView2 process tree.
 
-To synchronize the arguments, the host app must link with webview_prelaunch.lib and call `PreLaunchWebView(browser_args, user_data_dir, profile_name, prelaunch_mode)`.  If a process tree was already hosted with an incompatible set of args, it will be shutdown and a new one launched with the arguments supplied.  The `prelaunch_mode` argument determines if the WebView2 process tree will be created in the calling process, or if a forked process will be started designed to outlive the app host, further reducing the overhead of subsequent launches.
+## API Thoughts
+```
+class WebViewPreLaunchController {
+    // Starts webview launch on a background thread.
+    static shared_ptr<WebViewPreLaunchController> Launch(args_path);
 
-When a host app reaches the point where the webview must be created for it to proceed further, it calls `WaitForPreLaunchWebView(browser_args, user_data_dir, profile_name, prehost_webview_token)` passing the token previously returned by the `PreLaunchWebView` call.  After this method returns the app host creates its environment and webview controller in the usual way.
+    virtual WebViewCreationArguments ReadCachedWebViewPreLaunchArguments(std::string args_path);
+    virtual void CacheWebViewPreLaunchArguments(std::string args_path, WebViewCreationArguments args);
 
-The `WaitForPreLaunchWebView` will block ensuring the process tree has been successfully created.  It will also check the arguments in case further host app processing has determined they should be different from what was previously cached.  If the arguments have changed, a performance penalty will be incurred since we'll not only be creating the browser process tree as we would have without this library's help, but we'll also first wait for the pre-launched tree to be shutdown.
+    // Blocks while pre-launch webview is closed and background thread exits.
+    virtual void Close();
+
+    // Blocks until pre-launch is completed (or until it errors out)
+    virtual void WaitForPreLaunch();
+};
+```
+
+
+Host app uses the API as follows:
+```
+auto webview_prelaunch_controller = WebViewPreLaunchController::Launch(args_path);
+
+auto cachedArgs = webview_prelaunch_controller->ReadCachedWebViewPreLaunchArguments(args_path);
+
+// Build up new args
+
+if (args != cachedArgs) {
+    webview_prelaunch_controller->CacheWebViewPreLaunchArguments(args_path, args);
+    webview_prelaunch_controller->Close();
+}
+
+webview_prelaunch_controller->WaitForPreLaunch();
+
+// Create your own WV2
+```
 

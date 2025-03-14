@@ -32,10 +32,12 @@ link_libraries("${webview2_SOURCE_DIR}/build/native/${PLATFORM}/WebView2LoaderSt
 
 add_library(
   webview_prelaunch
-  webview_prelaunch.cpp
-  webview_prelaunch.h
   webview_creation_arguments.cpp
   webview_creation_arguments.h
+  webview_prelaunch.cpp
+  webview_prelaunch.h
+  webview_prelaunch_controller.cpp
+  webview_prelaunch_controller.h
 )
 #target_link_options(webview_launch PRIVATE "/SUBSYSTEM:WINDOWS")
 target_link_libraries(webview_prelaunch PUBLIC nlohmann_json::nlohmann_json)

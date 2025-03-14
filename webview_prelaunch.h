@@ -13,8 +13,9 @@
 #include <wrl/event.h>
 
 #include "webview_creation_arguments.h"
+#include "webview_prelaunch_controller.h"
 
-class WebViewPreLaunch {
+class WebViewPreLaunch : public  WebViewPreLaunchController {
 private:
     wil::com_ptr<ICoreWebView2> webView_;
     wil::com_ptr<ICoreWebView2Controller> webViewController_;
@@ -32,10 +33,13 @@ public:
     WebViewPreLaunch();
 
     void Launch(const std::string& cache_args_path);
-    bool WaitForLaunch(std::chrono::seconds timeout);
+    bool WaitForLaunch(std::chrono::seconds timeout) override;
+    void Close() override;
 
-    // public for testing only
+    std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::string& cache_args_path) override;
+    void CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) override;
+
+    // Exposed public for testing
     static std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(std::istream& stream);
     static void CacheWebViewCreationArguments(std::ostream& stream, const WebViewCreationArguments& args);
-
 };

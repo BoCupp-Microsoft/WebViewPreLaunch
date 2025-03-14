@@ -108,13 +108,13 @@ bool WebViewPreLaunch::LaunchBackground(const std::string& cache_args_path) {
     Microsoft::WRL::ComPtr<ICoreWebView2EnvironmentOptions7> options7;
     options.As(&options7);
     if (options7) {
-        options7->put_ChannelSearchKind(COREWEBVIEW2_CHANNEL_SEARCH_KIND_LEAST_STABLE);
-        options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(0xF));
+        options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args->channelSearchKind));
+        options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args->releaseChannelsMask));
     }
     
     options->put_AdditionalBrowserArguments(args->additional_browser_arguments.c_str());
-    options->put_EnableTrackingPrevention(false);
-    options->put_Language(L"en-US");
+    options->put_EnableTrackingPrevention(args->enableTrackingPrevention);
+    options->put_Language(args->language.c_str());
 
     hr = CreateCoreWebView2EnvironmentWithOptions(      
         nullptr, 
@@ -178,8 +178,32 @@ HRESULT WebViewPreLaunch::ControllerCreatedCallback(HRESULT result, ICoreWebView
     return S_OK;
 }
 
+void WebViewPreLaunch::Close() {
+    
+}
+
 bool WebViewPreLaunch::WaitForLaunch(std::chrono::seconds timeout) {
     return semaphore_.try_acquire_for(timeout);
+}
+
+void WebViewPreLaunch::CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) {
+    std::ofstream cache_file(cache_args_path);
+    if (!cache_file) {
+        std::cerr << "Could not open cache file for writing" << std::endl;
+        return;
+    }
+    
+    CacheWebViewCreationArguments(cache_file, args);
+}
+
+std::optional<WebViewCreationArguments> WebViewPreLaunch::ReadCachedWebViewCreationArguments(const std::string& cache_args_path) {
+    std::ifstream cache_file(cache_args_path);
+    if (!cache_file) {
+        std::cerr << "Could not read cache file" << std::endl;
+        return std::nullopt;
+    }
+
+    return ReadCachedWebViewCreationArguments(cache_file);
 }
 
 /*static*/
