@@ -15,18 +15,17 @@ It relies on a feature of WebView2 which shares a browser process tree for each 
 For each new host that shares the user data directory, only a new Renderer process will be created to execute that app's unique JS.  In the browser process, a new HWND will be created where the visuals from that Renderer process can be presented.  That new HWND will be parented to an HWND created by the app host.  This is roughly equivalent to having a browser with multiple "torn off" tabs.
 
 ## Browser-startup Args
-To share the browser process, we not only need to share the same user data directory but also the parameters use to create the WebView2 environment must be the same.  If the environment arguments are not identitical, the host won't be able to create their own instance of WebView2 to attach to the pre-launched WebView2 process tree.
+To share the browser process, we not only need to share the same user data directory but also the parameters used to create the WebView2 environment must be the same.  If the environment arguments are not identitical, the host won't be able to create their own instance of WebView2 to attach to the pre-launched WebView2 process tree.
 
 ## Usage
 ```
 auto webview_prelaunch_controller = WebViewPreLaunchController::Launch(args_path);
 
-auto cached_args = webview_prelaunch_controller->ReadCachedWebViewPreLaunchArguments(args_path);
-
 // Run whatever startup code you want while WV2 starts on a background thread
 
 // Build up new args through whatever mechanism
 
+auto cached_args = webview_prelaunch_controller->ReadCachedWebViewPreLaunchArguments(args_path);
 if (!cached_args.has_value() || args != cachedArgs.value()) {
     // Can't use the pre-launched tree this time.
     // Cache the args to help the next launch and close the pre-launched processes. 

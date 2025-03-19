@@ -1,3 +1,4 @@
+#include <atomic>
 #include <chrono>
 #include <istream>
 #include <optional>
@@ -22,7 +23,7 @@ private:
     std::binary_semaphore semaphore_;
     std::thread launch_thread_;
     HWND backgroundHwnd_ = nullptr;
-    bool background_thread_should_exit_ = false;
+    std::atomic<bool> background_thread_should_exit_ = false;
 
     bool LaunchBackground(const std::string& cache_args_path);
     HWND CreateMessageWindow();
@@ -35,6 +36,7 @@ public:
     void Launch(const std::string& cache_args_path);
     bool WaitForLaunch(std::chrono::seconds timeout) override;
     void Close() override;
+    void WaitForClose() override;
 
     std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::string& cache_args_path) override;
     void CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) override;

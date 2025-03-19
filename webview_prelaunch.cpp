@@ -50,9 +50,10 @@ HWND WebViewPreLaunch::CreateMessageWindow() {
     return hwnd;
 }
 
-
 void WebViewPreLaunch::Launch(const std::string& cache_args_path) {
     launch_thread_ = std::thread([this, cache_args_path]() {
+        std::cout << "Background pre-launch is starting" << std::endl;
+
         if (!LaunchBackground(cache_args_path)) {
             semaphore_.release();
             return;
@@ -69,6 +70,11 @@ void WebViewPreLaunch::Launch(const std::string& cache_args_path) {
                 break;
             }
         }
+
+        std::cout << "Background pre-launch is exiting" << std::endl;
+        webView_.reset();
+        webViewController_.reset();
+        backgroundHwnd_ = nullptr;
     });
 }
 
@@ -174,12 +180,20 @@ HRESULT WebViewPreLaunch::ControllerCreatedCallback(HRESULT result, ICoreWebView
     }
 
     // Release the semaphore to indicate that the WebView is ready
+    std::cerr << "Pre-launched WebView is ready" << std::endl;
     semaphore_.release();
     return S_OK;
 }
 
 void WebViewPreLaunch::Close() {
-    
+    background_thread_should_exit_ = true;
+    PostMessage(backgroundHwnd_, WM_DESTROY, 0, 0);
+}
+
+void WebViewPreLaunch::WaitForClose() {
+    if (launch_thread_.joinable()) {
+        launch_thread_.join();
+    }
 }
 
 bool WebViewPreLaunch::WaitForLaunch(std::chrono::seconds timeout) {
