@@ -1,0 +1,28 @@
+{
+    "version": 8,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "vs-vcpkg-preset",
+            "binaryDir": "${sourceDir}/build",
+            "generator": "Visual Studio 17 2022",
+            "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Debug",
+            "configurePreset": "vs-vcpkg-preset",
+            "configuration": "Debug"
+        },
+        {
+            "name": "Release",
+            "configurePreset": "vs-vcpkg-preset",
+            "configuration": "Release"
+        }
+    ]
+}
