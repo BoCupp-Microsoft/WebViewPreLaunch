@@ -8,6 +8,8 @@ on:
 
 jobs:
   build:
+    runs-on: windows-latest
+
     steps:
       #-uses: actions/cache@v3   <===== YOU DO NOT NEED THIS!
 
