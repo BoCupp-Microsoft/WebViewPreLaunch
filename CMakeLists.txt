@@ -73,7 +73,7 @@ add_executable(
   webview_prelaunch_demo.cpp
 )
 target_link_libraries(webview_prelaunch_demo PRIVATE webview_prelaunch)
-target_link_libraries(webview_prelaunch_demo PRIVATE "Shcore.lib" "windowsapp.lib")
+target_link_libraries(webview_prelaunch_demo PRIVATE "Shcore.lib" "runtimeobject.lib")
 
 FetchContent_Declare(
   googletest
