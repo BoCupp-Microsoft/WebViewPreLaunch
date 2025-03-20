@@ -93,6 +93,7 @@ target_link_libraries(
   webview_prelaunch_test
   GTest::gtest_main
   webview_prelaunch
+  "runtimeobject.lib"
 )
 
 include(GoogleTest)
