@@ -1,3 +1,4 @@
+#include <boost/nowide/convert.hpp>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -9,7 +10,7 @@
 #include <windows.h>
 #include <wrl.h>
 #include <wrl/event.h>
-#include "webview_prelaunch_controller.h"
+#include "webview_prelaunch_controller.hpp"
 
 using namespace Microsoft::WRL;
 
@@ -17,7 +18,8 @@ using namespace Microsoft::WRL;
 LRESULT CALLBACK DemoWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_DESTROY:
-            PostQuitMessage(0);
+            std::cout << "Demo window destroyed" << std::endl;
+            PostQuitMessage(/*nExitCode*/0);
             return 0;
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -36,16 +38,19 @@ int main() {
         std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
         return -1;
     }
-    
+
     WebViewCreationArguments args = {
-        L"",
-        L"C:\\Users\\pcupp\\AppData\\Local\\Packages\\MSTeams_8wekyb3d8bbwe\\LocalCache\\Microsoft\\MSTeams",
-        L"--autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --edge-webview-foreground-boost-opt-in --edge-webview-interactive-dragging --edge-webview-run-with-package-id --isolate-origins=https://[*.]microsoft.com,https://[*.]sharepoint.com,https://[*.]sharepointonline.com,https://mesh-hearts-teams.azurewebsites.net,https://[*.]meshxp.net,https://res-sdf.cdn.office.net,https://res.cdn.office.net,https://copilot.teams.cloud.microsoft,https://local.copilot.teams.office.com --js-flags=--scavenger_max_new_space_capacity_mb=8 --enable-features=AutofillReplaceCachedWebElementsByRendererIds,DocumentPolicyIncludeJSCallStacksInCrashReports,PartitionedCookies,PreferredAudioOutputDevices,SharedArrayBuffer,ThirdPartyStoragePartitioning,msAbydos,msAbydosGestureSupport,msAbydosHandwritingAttr,msWebView2EnableDraggableRegions,msWebView2SetUserAgentOverrideOnIframes,msWebView2TerminateServiceWorkerWhenIdleIgnoringCdpSessions,msWebView2TextureStream --disable-features=BreakoutBoxPreferCaptureTimestampInVideoFrames,V8Maglev,msWebOOUI",
-        L"en-US",
+        "",
+        "C:\\Users\\pcupp\\AppData\\Local\\Temp\\PreLaunchTest",
+        "--edge-webview-foreground-boost-opt-in --edge-webview-run-with-package-id --isolate-origins=https://[*.]microsoft.com,https://[*.]sharepoint.com,https://[*.]sharepointonline.com,https://mesh-hearts-teams.azurewebsites.net,https://[*.]meshxp.net,https://res-sdf.cdn.office.net,https://res.cdn.office.net,https://copilot.teams.cloud.microsoft,https://local.copilot.teams.office.com --js-flags=--scavenger_max_new_space_capacity_mb=8 --enable-features=AutofillReplaceCachedWebElementsByRendererIds,DocumentPolicyIncludeJSCallStacksInCrashReports,PartitionedCookies,PreferredAudioOutputDevices,SharedArrayBuffer,ThirdPartyStoragePartitioning,msAbydos,msAbydosGestureSupport,msAbydosHandwritingAttr,msWebView2EnableDraggableRegions,msWebView2SetUserAgentOverrideOnIframes,msWebView2TerminateServiceWorkerWhenIdleIgnoringCdpSessions,msWebView2TextureStream --disable-features=BreakoutBoxPreferCaptureTimestampInVideoFrames,V8Maglev,msWebOOUI",
+        "en-US",
         /*releaseChannelMask*/0xF,
         /*channelSearchKind*/0,
         /*enableTrackingPrevention*/false
     };
+
+    controller->WaitForLaunch();
+    std::cout << "Done waiting for WebView prelaunch." << std::endl;
 
     auto cached_args = controller->ReadCachedWebViewCreationArguments(cache_file_path);
     if (!cached_args.has_value() || cached_args.value() != args) {
@@ -53,10 +58,13 @@ int main() {
         
         controller->CacheWebViewCreationArguments(cache_file_path, args);
         std::cout << "New WebView creation arguments cached." << std::endl;
-    }
 
-    controller->WaitForLaunch(std::chrono::seconds(30));
-    std::cout << "Done waiting for WebView prelaunch." << std::endl;
+        controller->Close(/*wait_for_browser_process_exit*/true);
+        std::cout << "Requesting pre-launch thread be exited." << std::endl;
+
+        controller->WaitForClose();
+        std::cout << "Done waiting for pre-launch thread to exit." << std::endl;
+    }
 
     ////////////////////////////////////
     // Demo Window Creation
@@ -101,19 +109,24 @@ int main() {
         options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.releaseChannelsMask));
     }
     
-    options->put_AdditionalBrowserArguments(args.additional_browser_arguments.c_str());
+    std::wstring browser_exe_path = boost::nowide::widen(args.browser_exe_path);
+    std::wstring user_data_dir = boost::nowide::widen(args.user_data_dir);
+    std::wstring additional_browser_arguments = boost::nowide::widen(args.additional_browser_arguments);
+    std::wstring language = boost::nowide::widen(args.language);
+
+    options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str());
     options->put_EnableTrackingPrevention(args.enableTrackingPrevention);
-    options->put_Language(args.language.c_str());
+    options->put_Language(language.c_str());
 
     wil::com_ptr<ICoreWebView2Environment> webViewEnvironment;
     wil::com_ptr<ICoreWebView2Controller> webViewController;
     wil::com_ptr<ICoreWebView2> webView;
     hr = CreateCoreWebView2EnvironmentWithOptions(
-        nullptr,
-        args.user_data_dir.c_str(),
+        browser_exe_path.c_str(),
+        user_data_dir.c_str(),
         options.Get(),
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [hwnd, &webViewEnvironment, &webViewController, &webView](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+            [hwnd, &webViewEnvironment, &webViewController, &webView, &prelaunchController = controller](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                 if (FAILED(result)) {
                     std::cerr << "Failed to create WebView2 environment: " << std::hex << result << std::endl;
                     return result;
@@ -121,7 +134,10 @@ int main() {
                 webViewEnvironment = env;
 
                 env->CreateCoreWebView2Controller(hwnd, Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [hwnd, &webViewController, &webView](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                    [hwnd, &webViewController, &webView, &prelaunchController](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                        // Close our background HWND (but don't wait on it)
+                        // prelaunchController->Close();
+
                         if (FAILED(result)) {
                             std::cerr << "Failed to create WebView2 controller: " << std::hex << result << std::endl;
                             return result;
@@ -177,10 +193,13 @@ int main() {
         DispatchMessage(&msg);
     }
 
+    std::cout << "Demo window message loop exited" << std::endl;
+
     // We could close right after we have created the demo WebView
     // TODO: determine if we avoid the creation of about blank renderers if we leave our pre-launch alive
-    controller->Close();
+    controller->Close(false);
     controller->WaitForClose();
+    std::cout << "Done waiting for background close" << std::endl;
 
     return 0;
 }

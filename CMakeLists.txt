@@ -29,6 +29,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(wil webview2 json)
 
+
+find_package(Boost REQUIRED COMPONENTS nowide)
+
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM "${wil_SOURCE_DIR}/include/")
 include_directories(SYSTEM "${webview2_SOURCE_DIR}/build/native/include/")
 
@@ -59,14 +63,14 @@ link_libraries("${webview2_SOURCE_DIR}/build/native/${WEBVIEW2_LOADER_ARCH}/WebV
 add_library(
   webview_prelaunch
   webview_creation_arguments.cpp
-  webview_creation_arguments.h
-  webview_prelaunch.cpp
-  webview_prelaunch.h
+  webview_creation_arguments.hpp
+  webview_prelaunch_controller_win.cpp
+  webview_prelaunch_controller_win.hpp
   webview_prelaunch_controller.cpp
-  webview_prelaunch_controller.h
+  webview_prelaunch_controller.hpp
 )
 #target_link_options(webview_launch PRIVATE "/SUBSYSTEM:WINDOWS")
-target_link_libraries(webview_prelaunch PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(webview_prelaunch PUBLIC nlohmann_json::nlohmann_json ${Boost_LIBRARIES})
 
 add_executable(
   webview_prelaunch_demo
@@ -93,10 +97,9 @@ target_link_libraries(
   webview_prelaunch_test
   GTest::gtest_main
   webview_prelaunch
+  ${Boost_LIBRARIES}
   "runtimeobject.lib"
 )
 
 include(GoogleTest)
 gtest_discover_tests(webview_prelaunch_test)
-
-

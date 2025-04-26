@@ -1,7 +1,10 @@
+#include "webview_prelaunch_controller_win.hpp"
+
+#include <boost/nowide/convert.hpp>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <nlohmann/json.hpp>
-#include "webview_prelaunch.h"
 
 using json = nlohmann::json;
 using namespace Microsoft::WRL;
@@ -10,7 +13,8 @@ using namespace Microsoft::WRL;
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_DESTROY:
-            PostQuitMessage(0);
+            std::cout << "Pre-launch background window destroyed" << std::endl;
+            PostQuitMessage(/*nExitCode*/0);
             return 0;
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -50,12 +54,39 @@ HWND WebViewPreLaunch::CreateMessageWindow() {
     return hwnd;
 }
 
+
+namespace {
+template <class T>
+class AutoReset {
+public:
+    explicit AutoReset(T& t_) : t(t_) {}
+    ~AutoReset() {
+        t.reset();
+    }
+private:
+    T& t;
+};
+
+template <class T>
+class AutoRelease {
+public:
+    explicit AutoRelease(T& t_) : t(t_) {}
+    ~AutoRelease() {
+        t.release();
+    }
+private:
+    T& t;
+};
+}  // namespace
+
 void WebViewPreLaunch::Launch(const std::string& cache_args_path) {
     launch_thread_ = std::thread([this, cache_args_path]() {
         std::cout << "Background pre-launch is starting" << std::endl;
+        AutoReset<decltype(webView_)> auto_reset_webview(webView_);
+        AutoReset<decltype(webViewController_)> auto_reset_webview_controller(webViewController_);
+        AutoRelease<decltype(semaphore_)> auto_release_semaphore(semaphore_);
 
         if (!LaunchBackground(cache_args_path)) {
-            semaphore_.release();
             return;
         }
 
@@ -66,15 +97,25 @@ void WebViewPreLaunch::Launch(const std::string& cache_args_path) {
             DispatchMessage(&msg);
 
             if (background_thread_should_exit_) {
-                semaphore_.release();
+                std::cout << "Pre-launch message loop is exiting" << std::endl;
                 break;
             }
         }
 
         std::cout << "Background pre-launch is exiting" << std::endl;
-        webView_.reset();
-        webViewController_.reset();
-        backgroundHwnd_ = nullptr;
+        if (wait_for_browser_process_exit_) {
+            std::cout << "Waiting for browser process " << browser_process_id_ << " exit" << std::endl;
+            HANDLE browser_process_handle = ::OpenProcess(SYNCHRONIZE , false, browser_process_id_);
+            if (browser_process_handle == nullptr) {
+                std::cerr << "Failed to open browser process handle: " << GetLastError() << std::endl;
+                return;
+            }
+
+            webView_.reset();
+            webViewController_.reset();    
+            WaitForSingleObject(browser_process_handle, INFINITE);
+            std::cout << "Browser process exited" << std::endl;
+        }
     });
 }
 
@@ -82,28 +123,24 @@ bool WebViewPreLaunch::LaunchBackground(const std::string& cache_args_path) {
     std::ifstream cache_file(cache_args_path);
     if (!cache_file) {
         std::cerr << "Could not read cache file path" << std::endl;
-        semaphore_.release();
         return false;
     }
 
     auto args = ReadCachedWebViewCreationArguments(cache_file);
     if (!args.has_value()) {
         std::cerr << "Failed to read cached args" << std::endl;
-        semaphore_.release();
         return false;
     }
 
     HRESULT hr = RoInitialize(RO_INIT_SINGLETHREADED);
     if (FAILED(hr)) {
         std::cerr << "Failed to initialize COM: " << std::hex << hr << std::endl;
-        semaphore_.release();
         return false;
     }
 
     backgroundHwnd_ = CreateMessageWindow();
-    if (backgroundHwnd_ == NULL) {
+    if (backgroundHwnd_ == nullptr) {
         std::cerr << "Failed to create window" << std::endl;
-        semaphore_.release();
         return false;
     }
 
@@ -118,13 +155,18 @@ bool WebViewPreLaunch::LaunchBackground(const std::string& cache_args_path) {
         options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args->releaseChannelsMask));
     }
     
-    options->put_AdditionalBrowserArguments(args->additional_browser_arguments.c_str());
+    std::wstring browser_exe_path = boost::nowide::widen(args->browser_exe_path);
+    std::wstring user_data_dir = boost::nowide::widen(args->user_data_dir);
+    std::wstring additional_browser_arguments = boost::nowide::widen(args->additional_browser_arguments);
+    std::wstring language = boost::nowide::widen(args->language);
+
+    options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str());
     options->put_EnableTrackingPrevention(args->enableTrackingPrevention);
-    options->put_Language(args->language.c_str());
+    options->put_Language(language.c_str());
 
     hr = CreateCoreWebView2EnvironmentWithOptions(      
-        nullptr, 
-        args->user_data_dir.c_str(),
+        browser_exe_path.c_str(), 
+        user_data_dir.c_str(),
         options.Get(),
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
             [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
@@ -133,7 +175,6 @@ bool WebViewPreLaunch::LaunchBackground(const std::string& cache_args_path) {
 
     if (FAILED(hr)) {
         std::cerr << "Failed to create WebView2 environment: " << std::hex << hr << std::endl;
-        semaphore_.release();
         return false;
     }
 
@@ -143,6 +184,7 @@ bool WebViewPreLaunch::LaunchBackground(const std::string& cache_args_path) {
 HRESULT WebViewPreLaunch::EnvironmentCreatedCallback(HRESULT result, ICoreWebView2Environment* env) {
     if (FAILED(result)) {
         std::cerr << "Failed to create WebView2 environment: " << std::hex << result << std::endl;
+        PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
         background_thread_should_exit_ = true;
         return result;
     }
@@ -157,7 +199,7 @@ HRESULT WebViewPreLaunch::EnvironmentCreatedCallback(HRESULT result, ICoreWebVie
 
     if (FAILED(hr)) {
         std::cerr << "Failed to create WebView2 controller: " << std::hex << hr << std::endl;
-        background_thread_should_exit_ = true;
+        PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
         return hr;
     }
 
@@ -167,7 +209,7 @@ HRESULT WebViewPreLaunch::EnvironmentCreatedCallback(HRESULT result, ICoreWebVie
 HRESULT WebViewPreLaunch::ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) {
     if (FAILED(result)) {
         std::cerr << "Failed to create WebView2 controller: " << std::hex << result << std::endl;
-        background_thread_should_exit_ = true;
+        PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
         return result;
     }
 
@@ -175,7 +217,14 @@ HRESULT WebViewPreLaunch::ControllerCreatedCallback(HRESULT result, ICoreWebView
     webViewController_->get_CoreWebView2(&webView_);
     if (webView_ == nullptr) {
         std::cerr << "Failed to get WebView2 instance" << std::endl;
-        background_thread_should_exit_ = true;
+        PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
+        return E_FAIL;
+    }
+
+    webView_->get_BrowserProcessId(&browser_process_id_);
+    if (browser_process_id_ == 0) {
+        std::cerr << "Failed to get browser process ID" << std::endl;
+        PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
         return E_FAIL;
     }
 
@@ -185,9 +234,12 @@ HRESULT WebViewPreLaunch::ControllerCreatedCallback(HRESULT result, ICoreWebView
     return S_OK;
 }
 
-void WebViewPreLaunch::Close() {
+void WebViewPreLaunch::Close(bool wait_for_browser_process_exit) {
+    wait_for_browser_process_exit_ = wait_for_browser_process_exit;
     background_thread_should_exit_ = true;
-    PostMessage(backgroundHwnd_, WM_DESTROY, 0, 0);
+
+    std::cout << "Posting WM_CLOSE to (" << std::hex << backgroundHwnd_ << ") for backgroundHwnd_" << std::endl;
+    PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
 }
 
 void WebViewPreLaunch::WaitForClose() {
@@ -196,8 +248,9 @@ void WebViewPreLaunch::WaitForClose() {
     }
 }
 
-bool WebViewPreLaunch::WaitForLaunch(std::chrono::seconds timeout) {
-    return semaphore_.try_acquire_for(timeout);
+void WebViewPreLaunch::WaitForLaunch() {
+    semaphore_.acquire();
+    semaphore_.release();
 }
 
 void WebViewPreLaunch::CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) {

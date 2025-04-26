@@ -1,5 +1,5 @@
-#include "webview_prelaunch.h"
-#include "webview_prelaunch_controller.h"
+#include "webview_prelaunch_controller.hpp"
+#include "webview_prelaunch_controller_win.hpp"
 
 /* static */
 std::shared_ptr<WebViewPreLaunchController> WebViewPreLaunchController::Launch(const std::string& cache_args_path) {

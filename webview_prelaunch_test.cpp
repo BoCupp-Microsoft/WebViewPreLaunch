@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 #include <sstream>
-#include "webview_prelaunch.h"
+#include "webview_prelaunch_controller_win.hpp"
 
 TEST(PreLaunchTest, CacheAndReadWebViewCreationArguments) {
     // Setup test data
     WebViewCreationArguments args;
-    args.browser_exe_path = L"C:\\test\\chrome.exe";
-    args.user_data_dir = L"C:\\test\\user_data";
-    args.additional_browser_arguments = L"--test-arg";
+    args.browser_exe_path = "C:\\test\\chrome.exe";
+    args.user_data_dir = "C:\\test\\user_data";
+    args.additional_browser_arguments = "--test-arg";
     
     // Cache to stringstream
     std::stringstream stream;

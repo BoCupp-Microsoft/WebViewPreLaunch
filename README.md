@@ -23,19 +23,26 @@ auto webview_prelaunch_controller = WebViewPreLaunchController::Launch(args_path
 
 // Run whatever startup code you want while WV2 starts on a background thread
 
-// Build up new args through whatever mechanism
+// Wait for pre-launch to finish so that we can either continue or close it down cleanly.
+webview_prelaunch_controller->WaitForPreLaunch();
 
+// Build up new args through whatever mechanism and compare them to what we started our pre-launch with.
 auto cached_args = webview_prelaunch_controller->ReadCachedWebViewPreLaunchArguments(args_path);
 if (!cached_args.has_value() || args != cachedArgs.value()) {
     // Can't use the pre-launched tree this time.
-    // Cache the args to help the next launch and close the pre-launched processes. 
+    // Cache the new args to help the next launch and close the pre-launched processes. 
     webview_prelaunch_controller->CacheWebViewPreLaunchArguments(args_path, args);
-    webview_prelaunch_controller->Close();
+    webview_prelaunch_controller->Close(/*wait_for_browser_process_exit*/true);
+    webview_prelaunch_controller->WaitForClose();
 }
 
-webview_prelaunch_controller->WaitForPreLaunch();
-
 // Create your own WV2
+
+// Call Close at any time after your WV2 controller has been created to start shutting down the background pre-launch thread
+webview_prelaunch_controller->Close(/*wait_for_browser_process_exit*/false);
+
+// Call WaitForClose when we are ready to exit the main thread
+webview_prelaunch_controller->WaitForClose();
 ```
 
 ## Additional Notes

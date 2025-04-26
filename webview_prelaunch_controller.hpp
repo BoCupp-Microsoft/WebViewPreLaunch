@@ -4,7 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include "webview_creation_arguments.h"
+#include "webview_creation_arguments.hpp"
 
 class WebViewPreLaunchController {
 public:
@@ -15,10 +15,10 @@ public:
     virtual void CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) = 0;
 
     // Closes the pre-launched webview and exits the background thread.
-    virtual void Close() = 0;
+    virtual void Close(bool wait_for_browser_process_exit) = 0;
     // Blocks while closing activities are completed.
     virtual void WaitForClose() = 0;
 
-    // Blocks until launch is completed (or until it errors out)
-    virtual bool WaitForLaunch(std::chrono::seconds timeout) = 0;
+    // Blocks until launch is completed.
+    virtual void WaitForLaunch() = 0;
 };
