@@ -20,7 +20,7 @@
 #include "webview_creation_arguments.hpp"
 #include "webview_prelaunch_controller.hpp"
 
-class WebviewPrelaunchControllerWin : public  WebviewPrelaunchController {
+class WebViewPreLaunchControllerWin : public  WebViewPreLaunchController {
 private:
     wil::com_ptr<ICoreWebView2> webview_;
     wil::com_ptr<ICoreWebView2Controller> webviewController_;
@@ -30,25 +30,25 @@ private:
     std::atomic<bool> wait_for_browser_process_exit_ = false;
     HWND backgroundHwnd_ = nullptr;
     uint32_t browser_process_id_ = 0;
-    WebviewPrelaunchTelemetry telemetry_;
+    WebViewPreLaunchTelemetry telemetry_;
 
-    void LaunchBackground(const std::string& cache_args_path) noexcept;
+    void LaunchBackground(const std::filesystem::path& cache_args_path) noexcept;
     HWND CreateMessageWindow();
     HRESULT EnvironmentCreatedCallback( HRESULT result, ICoreWebView2Environment* env) noexcept;
     HRESULT ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) noexcept;
 
 public:
-    WebviewPrelaunchControllerWin();
+    WebViewPreLaunchControllerWin();
 
-    void Launch(const std::string& cache_args_path);
+    void Launch(const std::filesystem::path& cache_args_path);
     void WaitForLaunch() override;
     void Close(bool wait_for_browser_process_exit) override;
     void WaitForClose() override;
 
-    std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::string& cache_args_path) noexcept override;
-    void CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) noexcept override;
+    std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::filesystem::path& cache_args_path) noexcept override;
+    void CacheWebViewCreationArguments(const std::filesystem::path& cache_args_path, const WebViewCreationArguments& args) noexcept override;
 
-    const WebviewPrelaunchTelemetry& GetTelemetry() const override;
+    const WebViewPreLaunchTelemetry& GetTelemetry() const override;
 
     // public for testing purposes
     static WebViewCreationArguments ReadCachedWebViewCreationArguments(std::istream& stream);

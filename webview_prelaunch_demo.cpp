@@ -31,7 +31,7 @@ int main() {
     SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
     constexpr char cache_file_path[63] = "C:\\Users\\pcupp\\AppData\\Local\\Temp\\webview_prelaunch_cache.json";
-    auto controller = WebviewPrelaunchController::Launch(cache_file_path);
+    auto controller = WebViewPreLaunchController::Launch(cache_file_path);
 
     HRESULT hr = RoInitialize(RO_INIT_SINGLETHREADED);
     if (FAILED(hr)) {

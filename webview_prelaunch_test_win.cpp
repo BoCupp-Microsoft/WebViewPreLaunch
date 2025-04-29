@@ -7,22 +7,22 @@
 
 namespace {
     // Helper method to get a temp path for the prelaunch config
-    std::string CreateTempPrelaunchConfigPath() {
+    std::filesystem::path CreateTempPrelaunchConfigPath() {
         auto temp_path = std::filesystem::temp_directory_path() / "webviewprelaunch_test" / 
             std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
         std::filesystem::create_directories(temp_path);
 
         auto json_path = temp_path / "test_config.json";
-        return json_path.string();
+        return json_path;
     }
 
     // Helper method to get a temp path for user data dir
-    std::string CreateTempUserDataPath() {
+    std::filesystem::path CreateTempUserDataPath() {
         auto temp_path = std::filesystem::temp_directory_path() / "webviewprelaunch_test" / "user_data" /
             std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
         std::filesystem::create_directories(temp_path);
 
-        return temp_path.string();
+        return temp_path;
     }
 }
 
@@ -32,7 +32,7 @@ TEST(PreLaunchTest, CacheAndReadWebViewCreationArguments) {
     args.user_data_dir = "C:\\test\\user_data";
     args.additional_browser_arguments = "--test-arg";
 
-    WebviewPrelaunchControllerWin controller;
+    WebViewPreLaunchControllerWin controller;
 
     // Cache prelaunch args
     auto prelaunch_config_path = CreateTempPrelaunchConfigPath();
@@ -53,7 +53,7 @@ TEST(PreLaunchTest, ReadInvalidJson) {
     prelaunch_config.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     prelaunch_config << "{ invalid json data }";
 
-    WebviewPrelaunchControllerWin controller;
+    WebViewPreLaunchControllerWin controller;
     auto read_args = controller.ReadCachedWebViewCreationArguments(prelaunch_config_path);
     ASSERT_TRUE(!read_args.has_value());
 
@@ -69,19 +69,19 @@ TEST(PreLaunchTest, Launch) {
     auto user_data_dir = CreateTempUserDataPath();
     WebViewCreationArguments args;
     args.browser_exe_path = "";
-    args.user_data_dir = user_data_dir;
+    args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
     args.releaseChannelsMask = 0xf;
     args.channelSearchKind = 0x0;
     args.enableTrackingPrevention = false;
 
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
 
-    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
 
     controller->Close(true);
     controller->WaitForClose();
@@ -95,23 +95,23 @@ TEST(PreLaunchTest, Launch2) {
     auto user_data_dir = CreateTempUserDataPath();
     WebViewCreationArguments args;
     args.browser_exe_path = "";
-    args.user_data_dir = user_data_dir;
+    args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
     args.releaseChannelsMask = 0xf;
     args.channelSearchKind = 0x0;
     args.enableTrackingPrevention = false;
 
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
     
-    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
-    auto controller2 = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
+    auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
     controller2->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
-    EXPECT_EQ(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId());
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId());
 
     controller->Close(false);
     controller2->Close(false);
@@ -127,9 +127,9 @@ TEST(PreLaunchTest, LaunchWithInvalidJson) {
     prelaunch_config << "{ invalid json data }";
     prelaunch_config.close();
     
-    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_EQ(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
     EXPECT_EQ(controller->GetTelemetry().exceptions.size(), 1);
     
     controller->Close(false);
@@ -148,32 +148,32 @@ TEST(PreLaunchTest, LaunchWithInitiallyDifferentArgs) {
     auto user_data_dir = CreateTempUserDataPath();
     WebViewCreationArguments args;
     args.browser_exe_path = "";
-    args.user_data_dir = user_data_dir;
+    args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
     args.releaseChannelsMask = 0xf;
     args.channelSearchKind = 0x0;
     args.enableTrackingPrevention = false;
 
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
 
     args.additional_browser_arguments = "--disable-features=V8Maglev";
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config2, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config2, args);
     prelaunch_config2.close();
     
-    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
     // If args are not equal the host should do the following
     controller->CacheWebViewCreationArguments(prelaunch_config_path, args);
     controller->Close(true);
     controller->WaitForClose();
 
     // Now we can successfully launch the second instance with different args
-    auto controller2 = WebviewPrelaunchController::Launch(prelaunch_config_path2);
+    auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path2);
     controller2->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
 
     // Clean everything up.  Notes that the Close and WaitForClose on the first controller
     // are not strictly necessary, but are likely to be called by the host so we don't need to track
@@ -196,28 +196,28 @@ TEST(PreLaunchTest, LaunchWithEnvironmentError) {
     auto user_data_dir = CreateTempUserDataPath();
     WebViewCreationArguments args;
     args.browser_exe_path = "";
-    args.user_data_dir = user_data_dir;
+    args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
     args.releaseChannelsMask = 0xf;
     args.channelSearchKind = 0x0;
     args.enableTrackingPrevention = false;
 
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
 
     args.additional_browser_arguments = "--disable-features=V8Maglev";
-    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config2, args);
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config2, args);
     prelaunch_config2.close();
     
-    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
 
     // Now we can successfully launch the second instance with different args
-    auto controller2 = WebviewPrelaunchController::Launch(prelaunch_config_path2);
+    auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path2);
     controller2->WaitForLaunch();
-    EXPECT_EQ(static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
     EXPECT_EQ(controller2->GetTelemetry().exceptions.size(), 1);
 
     // Clean everything up.  Notes that the Close and WaitForClose on the first controller

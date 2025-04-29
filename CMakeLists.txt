@@ -30,7 +30,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(wil webview2 json)
 
 
-find_package(Boost REQUIRED COMPONENTS nowide)
+set(BOOST_INCLUDE_LIBRARIES nowide)
+set(BOOST_ENABLE_CMAKE ON)
+
+include(FetchContent)
+FetchContent_Declare(
+  Boost
+  GIT_REPOSITORY https://github.com/boostorg/boost.git
+  GIT_TAG boost-1.80.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(Boost)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM "${wil_SOURCE_DIR}/include/")
@@ -70,7 +80,7 @@ add_library(
   webview_prelaunch_controller.hpp
 )
 #target_link_options(webview_launch PRIVATE "/SUBSYSTEM:WINDOWS")
-target_link_libraries(webview_prelaunch PUBLIC nlohmann_json::nlohmann_json ${Boost_LIBRARIES})
+target_link_libraries(webview_prelaunch PUBLIC nlohmann_json::nlohmann_json Boost::nowide)
 
 add_executable(
   webview_prelaunch_demo
@@ -97,7 +107,7 @@ target_link_libraries(
   webview_prelaunch_test_win
   GTest::gtest_main
   webview_prelaunch
-  ${Boost_LIBRARIES}
+  Boost::nowide
   "runtimeobject.lib"
 )
 
