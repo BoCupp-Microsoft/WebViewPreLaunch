@@ -90,11 +90,11 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(
-  webview_prelaunch_test
-  webview_prelaunch_test.cpp
+  webview_prelaunch_test_win
+  webview_prelaunch_test_win.cpp
 )
 target_link_libraries(
-  webview_prelaunch_test
+  webview_prelaunch_test_win
   GTest::gtest_main
   webview_prelaunch
   ${Boost_LIBRARIES}
@@ -102,4 +102,4 @@ target_link_libraries(
 )
 
 include(GoogleTest)
-gtest_discover_tests(webview_prelaunch_test)
+gtest_discover_tests(webview_prelaunch_test_win)
