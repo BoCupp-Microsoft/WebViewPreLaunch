@@ -31,7 +31,7 @@ int main() {
     SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
     constexpr char cache_file_path[63] = "C:\\Users\\pcupp\\AppData\\Local\\Temp\\webview_prelaunch_cache.json";
-    auto controller = WebViewPreLaunchController::Launch(cache_file_path);
+    auto controller = WebviewPrelaunchController::Launch(cache_file_path);
 
     HRESULT hr = RoInitialize(RO_INIT_SINGLETHREADED);
     if (FAILED(hr)) {
@@ -118,23 +118,23 @@ int main() {
     options->put_EnableTrackingPrevention(args.enableTrackingPrevention);
     options->put_Language(language.c_str());
 
-    wil::com_ptr<ICoreWebView2Environment> webViewEnvironment;
-    wil::com_ptr<ICoreWebView2Controller> webViewController;
-    wil::com_ptr<ICoreWebView2> webView;
+    wil::com_ptr<ICoreWebView2Environment> webviewEnvironment;
+    wil::com_ptr<ICoreWebView2Controller> webviewController;
+    wil::com_ptr<ICoreWebView2> webview;
     hr = CreateCoreWebView2EnvironmentWithOptions(
         browser_exe_path.c_str(),
         user_data_dir.c_str(),
         options.Get(),
         Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [hwnd, &webViewEnvironment, &webViewController, &webView, &prelaunchController = controller](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+            [hwnd, &webviewEnvironment, &webviewController, &webview, &prelaunchController = controller](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                 if (FAILED(result)) {
                     std::cerr << "Failed to create WebView2 environment: " << std::hex << result << std::endl;
                     return result;
                 }
-                webViewEnvironment = env;
+                webviewEnvironment = env;
 
                 env->CreateCoreWebView2Controller(hwnd, Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                    [hwnd, &webViewController, &webView, &prelaunchController](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
+                    [hwnd, &webviewController, &webview, &prelaunchController](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
                         // Close our background HWND (but don't wait on it)
                         // prelaunchController->Close();
 
@@ -144,10 +144,10 @@ int main() {
                         }
 
                         if (controller != nullptr) {
-                            webViewController = controller;
-                            webViewController->get_CoreWebView2(&webView);
+                            webviewController = controller;
+                            webviewController->get_CoreWebView2(&webview);
 
-                            webView->add_NavigationStarting(
+                            webview->add_NavigationStarting(
                                 Callback<ICoreWebView2NavigationStartingEventHandler>(
                                     [hwnd](ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
                                         LPWSTR uri;
@@ -158,8 +158,8 @@ int main() {
                                         return S_OK;
                                     }).Get(), nullptr);
 
-                            webView->Navigate(L"https://www.bing.com");
-                            webView->add_NavigationCompleted(
+                            webview->Navigate(L"https://www.bing.com");
+                            webview->add_NavigationCompleted(
                                 Callback<ICoreWebView2NavigationCompletedEventHandler>(
                                     [hwnd](ICoreWebView2* sender, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
                                         BOOL isSuccess;
@@ -171,10 +171,10 @@ int main() {
                             RECT bounds;
                             GetClientRect(hwnd, &bounds);
                             std::cout << "Window bounds: " << bounds.left << ", " << bounds.top << ", " << bounds.right << ", " << bounds.bottom << std::endl;
-                            webViewController->put_Bounds(bounds);
+                            webviewController->put_Bounds(bounds);
 
                             BOOL visibility = FALSE;
-                            webViewController->get_IsVisible(&visibility);
+                            webviewController->get_IsVisible(&visibility);
                             std::cout << "WV2 visibility: " << visibility << std::endl;
                         }
                         return S_OK;

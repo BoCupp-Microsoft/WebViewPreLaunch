@@ -19,7 +19,7 @@ To share the browser process, we not only need to share the same user data direc
 
 ## Usage
 ```
-auto webview_prelaunch_controller = WebViewPreLaunchController::Launch(args_path);
+auto webview_prelaunch_controller = WebviewPrelaunchController::Launch(args_path);
 
 // Run whatever startup code you want while WV2 starts on a background thread
 
@@ -27,11 +27,11 @@ auto webview_prelaunch_controller = WebViewPreLaunchController::Launch(args_path
 webview_prelaunch_controller->WaitForPreLaunch();
 
 // Build up new args through whatever mechanism and compare them to what we started our pre-launch with.
-auto cached_args = webview_prelaunch_controller->ReadCachedWebViewPreLaunchArguments(args_path);
+auto cached_args = webview_prelaunch_controller->ReadCachedWebviewPrelaunchArguments(args_path);
 if (!cached_args.has_value() || args != cachedArgs.value()) {
     // Can't use the pre-launched tree this time.
     // Cache the new args to help the next launch and close the pre-launched processes. 
-    webview_prelaunch_controller->CacheWebViewPreLaunchArguments(args_path, args);
+    webview_prelaunch_controller->CacheWebviewPrelaunchArguments(args_path, args);
     webview_prelaunch_controller->Close(/*wait_for_browser_process_exit*/true);
     webview_prelaunch_controller->WaitForClose();
 }

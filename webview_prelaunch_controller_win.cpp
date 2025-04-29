@@ -21,11 +21,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     }
 }
 
-WebViewPreLaunchControllerWin::WebViewPreLaunchControllerWin() : semaphore_(0) {}
+WebviewPrelaunchControllerWin::WebviewPrelaunchControllerWin() : semaphore_(0) {}
 
-HWND WebViewPreLaunchControllerWin::CreateMessageWindow() {
+HWND WebviewPrelaunchControllerWin::CreateMessageWindow() {
     // Define the window class
-    const char CLASS_NAME[] = "WebViewPreLaunchClass";
+    const char CLASS_NAME[] = "WebviewPrelaunchClass";
     WNDCLASS wc = { };
 
     wc.lpfnWndProc = WindowProc;
@@ -75,7 +75,7 @@ private:
 };
 }  // namespace
 
-void WebViewPreLaunchControllerWin::Launch(const std::string& cache_args_path) {
+void WebviewPrelaunchControllerWin::Launch(const std::string& cache_args_path) {
     cache_args_path_ = cache_args_path;
 
     launch_thread_ = std::thread([this, cache_args_path]() {
@@ -83,10 +83,10 @@ void WebViewPreLaunchControllerWin::Launch(const std::string& cache_args_path) {
     });
 }
 
-void WebViewPreLaunchControllerWin::LaunchBackground(const std::string& cache_args_path) noexcept try {
+void WebviewPrelaunchControllerWin::LaunchBackground(const std::string& cache_args_path) noexcept try {
     std::cout << "Background pre-launch is starting" << std::endl;
-    AutoReset<decltype(webView_)> auto_reset_webview(webView_);
-    AutoReset<decltype(webViewController_)> auto_reset_webview_controller(webViewController_);
+    AutoReset<decltype(webview_)> auto_reset_webview(webview_);
+    AutoReset<decltype(webviewController_)> auto_reset_webview_controller(webviewController_);
     AutoRelease<decltype(semaphore_)> auto_release_semaphore(semaphore_);
 
     std::ifstream cache_file(cache_args_path);
@@ -143,8 +143,8 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::string& cache_ar
         HANDLE browser_process_handle = ::OpenProcess(SYNCHRONIZE , false, browser_process_id_);
         THROW_LAST_ERROR_IF_NULL(browser_process_handle);
 
-        webView_.reset();
-        webViewController_.reset();
+        webview_.reset();
+        webviewController_.reset();
         WaitForSingleObject(browser_process_handle, INFINITE);
         std::cout << "Browser process exited" << std::endl;
     }    
@@ -153,7 +153,7 @@ catch(...) {
     // prevent exceptional launch thread behavior from terminating process
 }
 
-HRESULT WebViewPreLaunchControllerWin::EnvironmentCreatedCallback(HRESULT result, ICoreWebView2Environment* env) noexcept try {
+HRESULT WebviewPrelaunchControllerWin::EnvironmentCreatedCallback(HRESULT result, ICoreWebView2Environment* env) noexcept try {
     THROW_IF_FAILED(result);
 
     // Create the WebView using the default profile
@@ -173,13 +173,13 @@ catch(...) {
     RETURN_CAUGHT_EXCEPTION();
 }
 
-HRESULT WebViewPreLaunchControllerWin::ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) noexcept try {
+HRESULT WebviewPrelaunchControllerWin::ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) noexcept try {
     THROW_IF_FAILED(result);
 
-    webViewController_ = controller;
-    THROW_IF_FAILED(webViewController_->get_CoreWebView2(&webView_));
+    webviewController_ = controller;
+    THROW_IF_FAILED(webviewController_->get_CoreWebView2(&webview_));
     
-    THROW_IF_FAILED(webView_->get_BrowserProcessId(&browser_process_id_));
+    THROW_IF_FAILED(webview_->get_BrowserProcessId(&browser_process_id_));
     
     // Release the semaphore to indicate that the WebView is ready
     semaphore_.release();
@@ -191,7 +191,7 @@ catch(...) {
     RETURN_CAUGHT_EXCEPTION();
 }
 
-void WebViewPreLaunchControllerWin::Close(bool wait_for_browser_process_exit) {
+void WebviewPrelaunchControllerWin::Close(bool wait_for_browser_process_exit) {
     wait_for_browser_process_exit_ = wait_for_browser_process_exit;
     background_thread_should_exit_ = true;
 
@@ -204,18 +204,18 @@ void WebViewPreLaunchControllerWin::Close(bool wait_for_browser_process_exit) {
     PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
 }
 
-void WebViewPreLaunchControllerWin::WaitForClose() {
+void WebviewPrelaunchControllerWin::WaitForClose() {
     if (launch_thread_.joinable()) {
         launch_thread_.join();
     }
 }
 
-void WebViewPreLaunchControllerWin::WaitForLaunch() {
+void WebviewPrelaunchControllerWin::WaitForLaunch() {
     semaphore_.acquire();
     semaphore_.release();
 }
 
-void WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) noexcept try {
+void WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) noexcept try {
     std::ofstream cache_file(cache_args_path);
     cache_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     
@@ -224,7 +224,7 @@ void WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(const std::str
 catch(...) {
 }
 
-std::optional<WebViewCreationArguments> WebViewPreLaunchControllerWin::ReadCachedWebViewCreationArguments(const std::string& cache_args_path) noexcept try {
+std::optional<WebViewCreationArguments> WebviewPrelaunchControllerWin::ReadCachedWebViewCreationArguments(const std::string& cache_args_path) noexcept try {
     std::ifstream cache_file(cache_args_path);
     cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
@@ -235,18 +235,18 @@ catch(...) {
 }
 
 /*static*/
-void WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(std::ostream& stream, const WebViewCreationArguments& args) {
+void WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(std::ostream& stream, const WebViewCreationArguments& args) {
     json j(args);
     stream << j;
 }
 
 /*static*/
-WebViewCreationArguments WebViewPreLaunchControllerWin::ReadCachedWebViewCreationArguments(std::istream& stream) {
+WebViewCreationArguments WebviewPrelaunchControllerWin::ReadCachedWebViewCreationArguments(std::istream& stream) {
     json j;
     stream >> j;
     return j.get<WebViewCreationArguments>();
 }
 
-uint32_t WebViewPreLaunchControllerWin::GetBrowserProcessId() const {
+uint32_t WebviewPrelaunchControllerWin::GetBrowserProcessId() const {
     return browser_process_id_;
 }

@@ -20,11 +20,11 @@
 #include "webview_creation_arguments.hpp"
 #include "webview_prelaunch_controller.hpp"
 
-class WebViewPreLaunchControllerWin : public  WebViewPreLaunchController {
+class WebviewPrelaunchControllerWin : public  WebviewPrelaunchController {
 private:
     std::string cache_args_path_;
-    wil::com_ptr<ICoreWebView2> webView_;
-    wil::com_ptr<ICoreWebView2Controller> webViewController_;
+    wil::com_ptr<ICoreWebView2> webview_;
+    wil::com_ptr<ICoreWebView2Controller> webviewController_;
     std::binary_semaphore semaphore_;
     std::thread launch_thread_;
     std::atomic<bool> background_thread_should_exit_ = false;
@@ -38,7 +38,7 @@ private:
     HRESULT ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) noexcept;
 
 public:
-    WebViewPreLaunchControllerWin();
+    WebviewPrelaunchControllerWin();
 
     void Launch(const std::string& cache_args_path);
     void WaitForLaunch() override;
