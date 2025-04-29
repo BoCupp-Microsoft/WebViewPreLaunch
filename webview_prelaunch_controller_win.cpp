@@ -7,7 +7,6 @@
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
-using namespace Microsoft::WRL;
 
 /* static */
 std::shared_ptr<WebViewPreLaunchController> WebViewPreLaunchController::Launch(const std::filesystem::path& cache_args_path) {
@@ -138,14 +137,15 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path
         THROW_IF_FAILED(options->put_EnableTrackingPrevention(args.enableTrackingPrevention));
         THROW_IF_FAILED(options->put_Language(language.c_str()));
 
-        THROW_IF_FAILED(CreateCoreWebView2EnvironmentWithOptions(      
+        HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(      
             browser_exe_path.c_str(), 
             user_data_dir.c_str(),
             options.Get(),
-            Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
                 [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
                     return EnvironmentCreatedCallback(result, env);
-                }).Get()));
+                }).Get());
+        THROW_IF_FAILED(hr);
 
         // Run the message loop
         MSG msg = {};
@@ -180,7 +180,7 @@ HRESULT WebViewPreLaunchControllerWin::EnvironmentCreatedCallback(HRESULT result
     // Create the WebView using the default profile
     HRESULT hr = env->CreateCoreWebView2Controller(
         backgroundHwnd_,
-        Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+        Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
             [this](HRESULT result, ICoreWebView2Controller* controller) -> HRESULT {
                 return ControllerCreatedCallback(result, controller);
             }).Get());
