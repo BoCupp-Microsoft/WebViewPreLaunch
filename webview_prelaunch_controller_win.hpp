@@ -22,7 +22,6 @@
 
 class WebviewPrelaunchControllerWin : public  WebviewPrelaunchController {
 private:
-    std::string cache_args_path_;
     wil::com_ptr<ICoreWebView2> webview_;
     wil::com_ptr<ICoreWebView2Controller> webviewController_;
     std::binary_semaphore semaphore_;
@@ -31,6 +30,7 @@ private:
     std::atomic<bool> wait_for_browser_process_exit_ = false;
     HWND backgroundHwnd_ = nullptr;
     uint32_t browser_process_id_ = 0;
+    WebviewPrelaunchTelemetry telemetry_;
 
     void LaunchBackground(const std::string& cache_args_path) noexcept;
     HWND CreateMessageWindow();
@@ -47,6 +47,8 @@ public:
 
     std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::string& cache_args_path) noexcept override;
     void CacheWebViewCreationArguments(const std::string& cache_args_path, const WebViewCreationArguments& args) noexcept override;
+
+    const WebviewPrelaunchTelemetry& GetTelemetry() const override;
 
     // public for testing purposes
     static WebViewCreationArguments ReadCachedWebViewCreationArguments(std::istream& stream);

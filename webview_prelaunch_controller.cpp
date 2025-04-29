@@ -7,3 +7,8 @@ std::shared_ptr<WebviewPrelaunchController> WebviewPrelaunchController::Launch(c
     webview_prelaunch->Launch(cache_args_path);
     return webview_prelaunch;
 }
+
+std::chrono::milliseconds WebviewPrelaunchTelemetry::DurationSinceLaunch() const {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::high_resolution_clock::now() - launch_start);
+}

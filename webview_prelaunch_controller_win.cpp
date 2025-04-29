@@ -9,11 +9,22 @@
 using json = nlohmann::json;
 using namespace Microsoft::WRL;
 
+void HandleException(const std::exception_ptr& ex, WebviewPrelaunchTelemetry& telemetry, const std::string& unknown_exception_msg) {
+    try {
+        if (ex) {
+            std::rethrow_exception(ex);
+        }
+    } catch (const std::exception& e) {
+        telemetry.exceptions.push_back(e.what());
+    } catch (...) {
+        telemetry.exceptions.push_back(unknown_exception_msg);
+    }
+}
+
 // Minimal Window Procedure function to facilitate WebView2 creation
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_DESTROY:
-            std::cout << "Pre-launch background window destroyed" << std::endl;
             PostQuitMessage(/*nExitCode*/0);
             return 0;
         default:
@@ -76,84 +87,87 @@ private:
 }  // namespace
 
 void WebviewPrelaunchControllerWin::Launch(const std::string& cache_args_path) {
-    cache_args_path_ = cache_args_path;
+    telemetry_.launch_start = std::chrono::high_resolution_clock::now();
 
     launch_thread_ = std::thread([this, cache_args_path]() {
         this->LaunchBackground(cache_args_path);
     });
 }
 
-void WebviewPrelaunchControllerWin::LaunchBackground(const std::string& cache_args_path) noexcept try {
-    std::cout << "Background pre-launch is starting" << std::endl;
-    AutoReset<decltype(webview_)> auto_reset_webview(webview_);
-    AutoReset<decltype(webviewController_)> auto_reset_webview_controller(webviewController_);
+void WebviewPrelaunchControllerWin::LaunchBackground(const std::string& cache_args_path) noexcept {
+    telemetry_.background_launch_start = telemetry_.DurationSinceLaunch();
     AutoRelease<decltype(semaphore_)> auto_release_semaphore(semaphore_);
 
-    std::ifstream cache_file(cache_args_path);
-    cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    auto args = ReadCachedWebViewCreationArguments(cache_file);
+    try {
+        AutoReset<decltype(webview_)> auto_reset_webview(webview_);
+        AutoReset<decltype(webviewController_)> auto_reset_webview_controller(webviewController_);
 
-    THROW_IF_FAILED(RoInitialize(RO_INIT_SINGLETHREADED));
-    backgroundHwnd_ = CreateMessageWindow();
-    
-    // Initialize WebView2
-    auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
-    THROW_IF_NULL_ALLOC(options);
-    THROW_IF_FAILED(options->put_AllowSingleSignOnUsingOSPrimaryAccount(true));
+        std::ifstream cache_file(cache_args_path);
+        cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        auto args = ReadCachedWebViewCreationArguments(cache_file);
+        telemetry_.cached_args_read = telemetry_.DurationSinceLaunch();
 
-    Microsoft::WRL::ComPtr<ICoreWebView2EnvironmentOptions7> options7;
-    options.As(&options7);
-    THROW_IF_NULL_ALLOC(options7);
-    THROW_IF_FAILED(options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channelSearchKind)));
-    THROW_IF_FAILED(options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.releaseChannelsMask)));
-    
-    std::wstring browser_exe_path = boost::nowide::widen(args.browser_exe_path);
-    std::wstring user_data_dir = boost::nowide::widen(args.user_data_dir);
-    std::wstring additional_browser_arguments = boost::nowide::widen(args.additional_browser_arguments);
-    std::wstring language = boost::nowide::widen(args.language);
+        THROW_IF_FAILED(RoInitialize(RO_INIT_SINGLETHREADED));
+        backgroundHwnd_ = CreateMessageWindow();
+        telemetry_.window_created = telemetry_.DurationSinceLaunch();
+        
+        // Initialize WebView2
+        auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+        THROW_IF_NULL_ALLOC(options);
+        THROW_IF_FAILED(options->put_AllowSingleSignOnUsingOSPrimaryAccount(true));
 
-    THROW_IF_FAILED(options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str()));
-    THROW_IF_FAILED(options->put_EnableTrackingPrevention(args.enableTrackingPrevention));
-    THROW_IF_FAILED(options->put_Language(language.c_str()));
+        Microsoft::WRL::ComPtr<ICoreWebView2EnvironmentOptions7> options7;
+        options.As(&options7);
+        THROW_IF_NULL_ALLOC(options7);
+        THROW_IF_FAILED(options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channelSearchKind)));
+        THROW_IF_FAILED(options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.releaseChannelsMask)));
+        
+        std::wstring browser_exe_path = boost::nowide::widen(args.browser_exe_path);
+        std::wstring user_data_dir = boost::nowide::widen(args.user_data_dir);
+        std::wstring additional_browser_arguments = boost::nowide::widen(args.additional_browser_arguments);
+        std::wstring language = boost::nowide::widen(args.language);
 
-    THROW_IF_FAILED(CreateCoreWebView2EnvironmentWithOptions(      
-        browser_exe_path.c_str(), 
-        user_data_dir.c_str(),
-        options.Get(),
-        Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
-                return EnvironmentCreatedCallback(result, env);
-            }).Get()));
+        THROW_IF_FAILED(options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str()));
+        THROW_IF_FAILED(options->put_EnableTrackingPrevention(args.enableTrackingPrevention));
+        THROW_IF_FAILED(options->put_Language(language.c_str()));
 
-    // Run the message loop
-    MSG msg = {};
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        THROW_IF_FAILED(CreateCoreWebView2EnvironmentWithOptions(      
+            browser_exe_path.c_str(), 
+            user_data_dir.c_str(),
+            options.Get(),
+            Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+                [this](HRESULT result, ICoreWebView2Environment* env) -> HRESULT {
+                    return EnvironmentCreatedCallback(result, env);
+                }).Get()));
 
-        if (background_thread_should_exit_) {
-            std::cout << "Pre-launch message loop is exiting" << std::endl;
-            break;
+        // Run the message loop
+        MSG msg = {};
+        while (GetMessage(&msg, NULL, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+
+            if (background_thread_should_exit_) {
+                break;
+            }
         }
+
+        if (wait_for_browser_process_exit_) {
+            HANDLE browser_process_handle = ::OpenProcess(SYNCHRONIZE , false, browser_process_id_);
+            THROW_LAST_ERROR_IF_NULL(browser_process_handle);
+
+            webview_.reset();
+            webviewController_.reset();
+            WaitForSingleObject(browser_process_handle, INFINITE);
+        }    
     }
-
-    std::cout << "Background pre-launch is exiting" << std::endl;
-    if (wait_for_browser_process_exit_) {
-        std::cout << "Waiting for browser process " << browser_process_id_ << " exit" << std::endl;
-        HANDLE browser_process_handle = ::OpenProcess(SYNCHRONIZE , false, browser_process_id_);
-        THROW_LAST_ERROR_IF_NULL(browser_process_handle);
-
-        webview_.reset();
-        webviewController_.reset();
-        WaitForSingleObject(browser_process_handle, INFINITE);
-        std::cout << "Browser process exited" << std::endl;
-    }    
-}
-catch(...) {
-    // prevent exceptional launch thread behavior from terminating process
+    catch(...) {
+        auto ce = std::current_exception();
+        HandleException(ce, telemetry_, "Unknown exception occurred in LaunchBackground");
+    }
 }
 
 HRESULT WebviewPrelaunchControllerWin::EnvironmentCreatedCallback(HRESULT result, ICoreWebView2Environment* env) noexcept try {
+    telemetry_.envirionment_created = telemetry_.DurationSinceLaunch();
     THROW_IF_FAILED(result);
 
     // Create the WebView using the default profile
@@ -168,12 +182,16 @@ HRESULT WebviewPrelaunchControllerWin::EnvironmentCreatedCallback(HRESULT result
     return S_OK;
 }
 catch(...) {
+    auto ce = std::current_exception();
+    HandleException(ce, telemetry_, "Unknown exception occurred in EnvironmentCreatedCallback");
+
     PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
     background_thread_should_exit_ = true;
     RETURN_CAUGHT_EXCEPTION();
 }
 
 HRESULT WebviewPrelaunchControllerWin::ControllerCreatedCallback(HRESULT result, ICoreWebView2Controller* controller) noexcept try {
+    telemetry_.controller_created = telemetry_.DurationSinceLaunch();
     THROW_IF_FAILED(result);
 
     webviewController_ = controller;
@@ -186,6 +204,9 @@ HRESULT WebviewPrelaunchControllerWin::ControllerCreatedCallback(HRESULT result,
     return S_OK;
 }
 catch(...) {
+    auto ce = std::current_exception();
+    HandleException(ce, telemetry_, "Unknown exception occurred in ControllerCreatedCallback");
+
     PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
     background_thread_should_exit_ = true;
     RETURN_CAUGHT_EXCEPTION();
@@ -196,11 +217,9 @@ void WebviewPrelaunchControllerWin::Close(bool wait_for_browser_process_exit) {
     background_thread_should_exit_ = true;
 
     if (backgroundHwnd_ == nullptr) {
-        std::cout << "Background HWND is null" << std::endl;
         return;
     }
 
-    std::cout << "Posting WM_CLOSE to (" << std::hex << backgroundHwnd_ << ") for backgroundHwnd_" << std::endl;
     PostMessage(backgroundHwnd_, WM_CLOSE, 0, 0);
 }
 
@@ -222,6 +241,8 @@ void WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(const std::str
     CacheWebViewCreationArguments(cache_file, args);
 }
 catch(...) {
+    auto ce = std::current_exception();
+    HandleException(ce, telemetry_, "Unknown exception occurred in CacheWebViewCreationArguments");
 }
 
 std::optional<WebViewCreationArguments> WebviewPrelaunchControllerWin::ReadCachedWebViewCreationArguments(const std::string& cache_args_path) noexcept try {
@@ -231,7 +252,13 @@ std::optional<WebViewCreationArguments> WebviewPrelaunchControllerWin::ReadCache
     return ReadCachedWebViewCreationArguments(cache_file);
 }
 catch(...) {
+    auto ce = std::current_exception();
+    HandleException(ce, telemetry_, "Unknown exception occurred in ReadCachedWebViewCreationArguments");
     return std::nullopt;
+}
+
+const WebviewPrelaunchTelemetry& WebviewPrelaunchControllerWin::GetTelemetry() const {
+    return telemetry_;
 }
 
 /*static*/

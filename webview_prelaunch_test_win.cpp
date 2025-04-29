@@ -56,6 +56,9 @@ TEST(PreLaunchTest, ReadInvalidJson) {
     WebviewPrelaunchControllerWin controller;
     auto read_args = controller.ReadCachedWebViewCreationArguments(prelaunch_config_path);
     ASSERT_TRUE(!read_args.has_value());
+
+    auto telemetry = controller.GetTelemetry();
+    EXPECT_EQ(telemetry.exceptions.size(), 1);
 }
 
 TEST(PreLaunchTest, Launch) {
@@ -127,6 +130,7 @@ TEST(PreLaunchTest, LaunchWithInvalidJson) {
     auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
     EXPECT_EQ(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_EQ(controller->GetTelemetry().exceptions.size(), 1);
     
     controller->Close(false);
     controller->WaitForClose();
@@ -170,6 +174,51 @@ TEST(PreLaunchTest, LaunchWithInitiallyDifferentArgs) {
     auto controller2 = WebviewPrelaunchController::Launch(prelaunch_config_path2);
     controller2->WaitForLaunch();
     EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+
+    // Clean everything up.  Notes that the Close and WaitForClose on the first controller
+    // are not strictly necessary, but are likely to be called by the host so we don't need to track
+    // whether they were closed earlier.  Calling it again is harmless.
+    controller->Close(false);
+    controller2->Close(false);
+    controller->WaitForClose();
+    controller2->WaitForClose();
+}
+
+TEST(PreLaunchTest, LaunchWithEnvironmentError) {
+    auto prelaunch_config_path = CreateTempPrelaunchConfigPath();
+    std::ofstream prelaunch_config(prelaunch_config_path);
+    prelaunch_config.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+
+    auto prelaunch_config_path2 = CreateTempPrelaunchConfigPath();
+    std::ofstream prelaunch_config2(prelaunch_config_path2);
+    prelaunch_config2.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    
+    auto user_data_dir = CreateTempUserDataPath();
+    WebViewCreationArguments args;
+    args.browser_exe_path = "";
+    args.user_data_dir = user_data_dir;
+    args.additional_browser_arguments = "";
+    args.language = "en-US";
+    args.releaseChannelsMask = 0xf;
+    args.channelSearchKind = 0x0;
+    args.enableTrackingPrevention = false;
+
+    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    prelaunch_config.close();
+
+    args.additional_browser_arguments = "--disable-features=V8Maglev";
+    WebviewPrelaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config2, args);
+    prelaunch_config2.close();
+    
+    auto controller = WebviewPrelaunchController::Launch(prelaunch_config_path);
+    controller->WaitForLaunch();
+    EXPECT_NE(static_cast<WebviewPrelaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+
+    // Now we can successfully launch the second instance with different args
+    auto controller2 = WebviewPrelaunchController::Launch(prelaunch_config_path2);
+    controller2->WaitForLaunch();
+    EXPECT_EQ(static_cast<WebviewPrelaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_EQ(controller2->GetTelemetry().exceptions.size(), 1);
 
     // Clean everything up.  Notes that the Close and WaitForClose on the first controller
     // are not strictly necessary, but are likely to be called by the host so we don't need to track

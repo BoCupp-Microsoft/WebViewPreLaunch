@@ -4,7 +4,22 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
+
 #include "webview_creation_arguments.hpp"
+
+struct WebviewPrelaunchTelemetry {
+    std::vector<std::string> exceptions;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> launch_start;
+    std::chrono::milliseconds background_launch_start;
+    std::chrono::milliseconds cached_args_read;
+    std::chrono::milliseconds window_created;
+    std::chrono::milliseconds envirionment_created;
+    std::chrono::milliseconds controller_created;
+
+    std::chrono::milliseconds DurationSinceLaunch() const;
+};
 
 class WebviewPrelaunchController {
 public:
@@ -21,4 +36,8 @@ public:
 
     // Blocks until launch is completed.
     virtual void WaitForLaunch() = 0;
+  
+    // Get telemetry data about the pre-launch process.
+    // This should be called after WaitForLaunch() to get accurate data.
+    virtual const WebviewPrelaunchTelemetry& GetTelemetry() const = 0;
 };
