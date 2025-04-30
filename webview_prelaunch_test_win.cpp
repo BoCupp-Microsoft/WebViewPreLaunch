@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <sstream>
 #include <filesystem>
 #include <fstream>
 #include "webview_prelaunch_controller.hpp"
@@ -57,8 +56,7 @@ TEST(PreLaunchTest, ReadInvalidJson) {
     auto read_args = controller.ReadCachedWebViewCreationArguments(prelaunch_config_path);
     ASSERT_TRUE(!read_args.has_value());
 
-    auto telemetry = controller.GetTelemetry();
-    EXPECT_EQ(telemetry.exceptions.size(), 1);
+    EXPECT_EQ(controller.GetTelemetry().exceptions.size(), 1U);
 }
 
 TEST(PreLaunchTest, Launch) {
@@ -81,7 +79,7 @@ TEST(PreLaunchTest, Launch) {
 
     auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0U);
 
     controller->Close(true);
     controller->WaitForClose();
@@ -108,9 +106,9 @@ TEST(PreLaunchTest, Launch2) {
     auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0U);
     controller2->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0U);
     EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId());
 
     controller->Close(false);
@@ -129,8 +127,8 @@ TEST(PreLaunchTest, LaunchWithInvalidJson) {
     
     auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
-    EXPECT_EQ(controller->GetTelemetry().exceptions.size(), 1);
+    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0U);
+    EXPECT_EQ(controller->GetTelemetry().exceptions.size(), 1U);
     
     controller->Close(false);
     controller->WaitForClose();
@@ -164,7 +162,7 @@ TEST(PreLaunchTest, LaunchWithInitiallyDifferentArgs) {
     
     auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0U);
     // If args are not equal the host should do the following
     controller->CacheWebViewCreationArguments(prelaunch_config_path, args);
     controller->Close(true);
@@ -173,7 +171,7 @@ TEST(PreLaunchTest, LaunchWithInitiallyDifferentArgs) {
     // Now we can successfully launch the second instance with different args
     auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path2);
     controller2->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0U);
 
     // Clean everything up.  Notes that the Close and WaitForClose on the first controller
     // are not strictly necessary, but are likely to be called by the host so we don't need to track
@@ -212,13 +210,13 @@ TEST(PreLaunchTest, LaunchWithEnvironmentError) {
     
     auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
     controller->WaitForLaunch();
-    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0);
+    EXPECT_NE(static_cast<WebViewPreLaunchControllerWin*>(controller.get())->GetBrowserProcessId(), 0U);
 
     // Now we can successfully launch the second instance with different args
     auto controller2 = WebViewPreLaunchController::Launch(prelaunch_config_path2);
     controller2->WaitForLaunch();
-    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0);
-    EXPECT_EQ(controller2->GetTelemetry().exceptions.size(), 1);
+    EXPECT_EQ(static_cast<WebViewPreLaunchControllerWin*>(controller2.get())->GetBrowserProcessId(), 0U);
+    EXPECT_EQ(controller2->GetTelemetry().exceptions.size(), 1U);
 
     // Clean everything up.  Notes that the Close and WaitForClose on the first controller
     // are not strictly necessary, but are likely to be called by the host so we don't need to track
