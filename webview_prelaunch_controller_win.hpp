@@ -1,6 +1,5 @@
 #pragma once
 
-#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <istream>
@@ -26,10 +25,11 @@ private:
     wil::com_ptr<ICoreWebView2Controller> webviewController_;
     std::binary_semaphore semaphore_;
     std::thread launch_thread_;
-    std::atomic<bool> background_thread_should_exit_ = false;
-    std::atomic<bool> wait_for_browser_process_exit_ = false;
+    bool background_thread_should_exit_ = false;
+    bool wait_for_browser_process_exit_ = false;
     HWND backgroundHwnd_ = nullptr;
     uint32_t browser_process_id_ = 0;
+    std::optional<WebViewCreationArguments> cached_args_;
     WebViewPreLaunchTelemetry telemetry_;
 
     void LaunchBackground(const std::filesystem::path& cache_args_path) noexcept;

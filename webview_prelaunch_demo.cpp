@@ -45,8 +45,8 @@ int main() {
         "--edge-webview-foreground-boost-opt-in --edge-webview-run-with-package-id --isolate-origins=https://[*.]microsoft.com,https://[*.]sharepoint.com,https://[*.]sharepointonline.com,https://mesh-hearts-teams.azurewebsites.net,https://[*.]meshxp.net,https://res-sdf.cdn.office.net,https://res.cdn.office.net,https://copilot.teams.cloud.microsoft,https://local.copilot.teams.office.com --js-flags=--scavenger_max_new_space_capacity_mb=8 --enable-features=AutofillReplaceCachedWebElementsByRendererIds,DocumentPolicyIncludeJSCallStacksInCrashReports,PartitionedCookies,PreferredAudioOutputDevices,SharedArrayBuffer,ThirdPartyStoragePartitioning,msAbydos,msAbydosGestureSupport,msAbydosHandwritingAttr,msWebView2EnableDraggableRegions,msWebView2SetUserAgentOverrideOnIframes,msWebView2TerminateServiceWorkerWhenIdleIgnoringCdpSessions,msWebView2TextureStream --disable-features=BreakoutBoxPreferCaptureTimestampInVideoFrames,V8Maglev,msWebOOUI",
         "en-US",
         /*releaseChannelMask*/0xF,
-        /*channelSearchKind*/0,
-        /*enableTrackingPrevention*/false
+        /*channel_search_kind*/0,
+        /*enable_tracking_prevention*/false
     };
 
     controller->WaitForLaunch();
@@ -105,8 +105,8 @@ int main() {
     Microsoft::WRL::ComPtr<ICoreWebView2EnvironmentOptions7> options7;
     options.As(&options7);
     if (options7) {
-        options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channelSearchKind));
-        options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.releaseChannelsMask));
+        options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channel_search_kind));
+        options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.release_channels_mask));
     }
     
     std::wstring browser_exe_path = boost::nowide::widen(args.browser_exe_path);
@@ -115,7 +115,7 @@ int main() {
     std::wstring language = boost::nowide::widen(args.language);
 
     options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str());
-    options->put_EnableTrackingPrevention(args.enableTrackingPrevention);
+    options->put_EnableTrackingPrevention(args.enable_tracking_prevention);
     options->put_Language(language.c_str());
 
     wil::com_ptr<ICoreWebView2Environment> webviewEnvironment;

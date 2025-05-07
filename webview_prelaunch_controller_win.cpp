@@ -101,7 +101,7 @@ void WebViewPreLaunchControllerWin::Launch(const std::filesystem::path& cache_ar
 }
 
 void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path& cache_args_path) noexcept {
-    telemetry_.background_launch_start = telemetry_.DurationSinceLaunch();
+    telemetry_.background_launch_started = telemetry_.DurationSinceLaunch();
     AutoRelease<decltype(semaphore_)> auto_release_semaphore(semaphore_);
 
     try {
@@ -111,7 +111,7 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path
         std::ifstream cache_file(cache_args_path);
         cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
         auto args = ReadCachedWebViewCreationArguments(cache_file);
-        telemetry_.cached_args_read = telemetry_.DurationSinceLaunch();
+        telemetry_.read_cached_args_completed = telemetry_.DurationSinceLaunch();
 
         THROW_IF_FAILED(RoInitialize(RO_INIT_SINGLETHREADED));
         backgroundHwnd_ = CreateMessageWindow();
@@ -125,8 +125,8 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path
         Microsoft::WRL::ComPtr<ICoreWebView2EnvironmentOptions7> options7;
         options.As(&options7);
         THROW_IF_NULL_ALLOC(options7);
-        THROW_IF_FAILED(options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channelSearchKind)));
-        THROW_IF_FAILED(options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.releaseChannelsMask)));
+        THROW_IF_FAILED(options7->put_ChannelSearchKind(static_cast<COREWEBVIEW2_CHANNEL_SEARCH_KIND>(args.channel_search_kind)));
+        THROW_IF_FAILED(options7->put_ReleaseChannels(static_cast<COREWEBVIEW2_RELEASE_CHANNELS>(args.release_channels_mask)));
         
         std::wstring browser_exe_path = boost::nowide::widen(args.browser_exe_path);
         std::wstring user_data_dir = boost::nowide::widen(args.user_data_dir);
@@ -134,7 +134,7 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path
         std::wstring language = boost::nowide::widen(args.language);
 
         THROW_IF_FAILED(options->put_AdditionalBrowserArguments(additional_browser_arguments.c_str()));
-        THROW_IF_FAILED(options->put_EnableTrackingPrevention(args.enableTrackingPrevention));
+        THROW_IF_FAILED(options->put_EnableTrackingPrevention(args.enable_tracking_prevention));
         THROW_IF_FAILED(options->put_Language(language.c_str()));
 
         HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(      
@@ -174,7 +174,7 @@ void WebViewPreLaunchControllerWin::LaunchBackground(const std::filesystem::path
 }
 
 HRESULT WebViewPreLaunchControllerWin::EnvironmentCreatedCallback(HRESULT result, ICoreWebView2Environment* env) noexcept try {
-    telemetry_.envirionment_created = telemetry_.DurationSinceLaunch();
+    telemetry_.environment_created = telemetry_.DurationSinceLaunch();
     THROW_IF_FAILED(result);
 
     // Create the WebView using the default profile
@@ -220,6 +220,8 @@ catch(...) {
 }
 
 void WebViewPreLaunchControllerWin::Close(bool wait_for_browser_process_exit) {
+    telemetry_.close_started = telemetry_.DurationSinceLaunch();
+
     wait_for_browser_process_exit_ = wait_for_browser_process_exit;
     background_thread_should_exit_ = true;
 
@@ -234,11 +236,14 @@ void WebViewPreLaunchControllerWin::WaitForClose() {
     if (launch_thread_.joinable()) {
         launch_thread_.join();
     }
+    telemetry_.waitforclose_completed = telemetry_.DurationSinceLaunch();
 }
 
 void WebViewPreLaunchControllerWin::WaitForLaunch() {
+    telemetry_.waitforlaunch_started = telemetry_.DurationSinceLaunch();
     semaphore_.acquire();
     semaphore_.release();
+    telemetry_.waitforlaunch_completed = telemetry_.DurationSinceLaunch();
 }
 
 void WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(const std::filesystem::path& cache_args_path, const WebViewCreationArguments& args) noexcept try {
@@ -246,6 +251,7 @@ void WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(const std::fil
     cache_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     
     CacheWebViewCreationArguments(cache_file, args);
+    telemetry_.cache_arguments_completed = telemetry_.DurationSinceLaunch();
 }
 catch(...) {
     auto ce = std::current_exception();
@@ -256,7 +262,11 @@ std::optional<WebViewCreationArguments> WebViewPreLaunchControllerWin::ReadCache
     std::ifstream cache_file(cache_args_path);
     cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
-    return ReadCachedWebViewCreationArguments(cache_file);
+    if (!cached_args_.has_value()) {
+        cached_args_ = ReadCachedWebViewCreationArguments(cache_file);  
+    }
+    telemetry_.foreground_read_cached_args_completed = telemetry_.DurationSinceLaunch();
+    return cached_args_;
 }
 catch(...) {
     auto ce = std::current_exception();

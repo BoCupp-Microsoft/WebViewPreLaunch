@@ -70,9 +70,9 @@ TEST(PreLaunchTest, Launch) {
     args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
-    args.releaseChannelsMask = 0xf;
-    args.channelSearchKind = 0x0;
-    args.enableTrackingPrevention = false;
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
 
     WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
@@ -96,9 +96,9 @@ TEST(PreLaunchTest, Launch2) {
     args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
-    args.releaseChannelsMask = 0xf;
-    args.channelSearchKind = 0x0;
-    args.enableTrackingPrevention = false;
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
 
     WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
@@ -149,9 +149,9 @@ TEST(PreLaunchTest, LaunchWithInitiallyDifferentArgs) {
     args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
-    args.releaseChannelsMask = 0xf;
-    args.channelSearchKind = 0x0;
-    args.enableTrackingPrevention = false;
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
 
     WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
@@ -197,9 +197,9 @@ TEST(PreLaunchTest, LaunchWithEnvironmentError) {
     args.user_data_dir = user_data_dir.string();
     args.additional_browser_arguments = "";
     args.language = "en-US";
-    args.releaseChannelsMask = 0xf;
-    args.channelSearchKind = 0x0;
-    args.enableTrackingPrevention = false;
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
 
     WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
     prelaunch_config.close();
@@ -225,4 +225,45 @@ TEST(PreLaunchTest, LaunchWithEnvironmentError) {
     controller2->Close(false);
     controller->WaitForClose();
     controller2->WaitForClose();
+}
+
+TEST(PreLaunchTest, LaunchTelemetry) {
+    auto prelaunch_config_path = CreateTempPrelaunchConfigPath();
+    std::ofstream prelaunch_config(prelaunch_config_path);
+    prelaunch_config.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    
+    auto user_data_dir = CreateTempUserDataPath();
+    WebViewCreationArguments args;
+    args.browser_exe_path = "";
+    args.user_data_dir = user_data_dir.string();
+    args.additional_browser_arguments = "";
+    args.language = "en-US";
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
+
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    prelaunch_config.close();
+
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
+    controller->WaitForLaunch();
+    
+    controller->ReadCachedWebViewCreationArguments(prelaunch_config_path);
+    controller->CacheWebViewCreationArguments(prelaunch_config_path, args);
+    controller->Close(true);
+    controller->WaitForClose();
+
+    const auto& telemetry = controller->GetTelemetry();
+    ASSERT_TRUE(telemetry.background_launch_started.count() <= telemetry.read_cached_args_completed.count());
+    ASSERT_TRUE(telemetry.read_cached_args_completed.count() <= telemetry.window_created.count());
+    ASSERT_TRUE(telemetry.window_created.count() <= telemetry.environment_created.count());
+    ASSERT_TRUE(telemetry.environment_created.count() <= telemetry.controller_created.count());
+    
+    ASSERT_TRUE(telemetry.controller_created.count() <= telemetry.waitforlaunch_completed.count());
+    ASSERT_TRUE(telemetry.waitforlaunch_started.count() <= telemetry.waitforlaunch_completed.count());
+    
+    ASSERT_TRUE(telemetry.waitforlaunch_completed.count() <= telemetry.foreground_read_cached_args_completed.count());
+    ASSERT_TRUE(telemetry.foreground_read_cached_args_completed.count() <= telemetry.cache_arguments_completed.count());
+    ASSERT_TRUE(telemetry.cache_arguments_completed.count() <= telemetry.close_started.count());
+    ASSERT_TRUE(telemetry.close_started.count() <= telemetry.waitforclose_completed.count());
 }

@@ -6,9 +6,9 @@ void to_json(nlohmann::json& j, const WebViewCreationArguments& args) {
         {"user_data_dir", args.user_data_dir},
         {"additional_browser_arguments", args.additional_browser_arguments},
         {"language", args.language},
-        {"releaseChannelsMask", args.releaseChannelsMask},
-        {"channelSearchKind", args.channelSearchKind},
-        {"enableTrackingPrevention", args.enableTrackingPrevention}
+        {"release_channels_mask", args.release_channels_mask},
+        {"channel_search_kind", args.channel_search_kind},
+        {"enable_tracking_prevention", args.enable_tracking_prevention}
     };
 }
 
@@ -17,7 +17,7 @@ void from_json(const nlohmann::json& j, WebViewCreationArguments& args) {
     j.at("user_data_dir").get_to(args.user_data_dir);
     j.at("additional_browser_arguments").get_to(args.additional_browser_arguments);
     j.at("language").get_to(args.language);
-    j.at("releaseChannelsMask").get_to(args.releaseChannelsMask);
-    j.at("channelSearchKind").get_to(args.channelSearchKind);
-    j.at("enableTrackingPrevention").get_to(args.enableTrackingPrevention);
+    j.at("release_channels_mask").get_to(args.release_channels_mask);
+    j.at("channel_search_kind").get_to(args.channel_search_kind);
+    j.at("enable_tracking_prevention").get_to(args.enable_tracking_prevention);
 }

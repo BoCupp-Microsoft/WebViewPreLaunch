@@ -8,9 +8,9 @@ struct WebViewCreationArguments {
     std::string user_data_dir;
     std::string additional_browser_arguments;
     std::string language;
-    uint8_t releaseChannelsMask = 0;
-    uint8_t channelSearchKind = 0;
-    bool enableTrackingPrevention = false;
+    uint8_t release_channels_mask = 0;
+    uint8_t channel_search_kind = 0;
+    bool enable_tracking_prevention = false;
 
     bool operator==(const WebViewCreationArguments&) const = default;
 };
