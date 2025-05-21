@@ -34,7 +34,9 @@ struct WebViewPreLaunchTelemetry {
 
 class WebViewPreLaunchController {
 public:
-      // Starts webview launch on a background thread.
+  virtual ~WebViewPreLaunchController() = default;
+  
+  // Starts webview launch on a background thread.
   static std::shared_ptr<WebViewPreLaunchController> Launch(
     const std::filesystem::path& cache_args_path);
 

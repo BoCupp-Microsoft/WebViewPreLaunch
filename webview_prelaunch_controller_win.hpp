@@ -39,6 +39,7 @@ private:
 
 public:
     WebViewPreLaunchControllerWin();
+    ~WebViewPreLaunchControllerWin() override;
 
     void Launch(const std::filesystem::path& cache_args_path);
     void WaitForLaunch() override;

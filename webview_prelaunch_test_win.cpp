@@ -267,3 +267,28 @@ TEST(PreLaunchTest, LaunchTelemetry) {
     ASSERT_TRUE(telemetry.cache_arguments_completed.count() <= telemetry.close_started.count());
     ASSERT_TRUE(telemetry.close_started.count() <= telemetry.waitforclose_completed.count());
 }
+
+TEST(PreLaunchTest, CloseOnDestruct) {
+    auto prelaunch_config_path = CreateTempPrelaunchConfigPath();
+    std::ofstream prelaunch_config(prelaunch_config_path);
+    prelaunch_config.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    
+    auto user_data_dir = CreateTempUserDataPath();
+    WebViewCreationArguments args;
+    args.browser_exe_path = "";
+    args.user_data_dir = user_data_dir.string();
+    args.additional_browser_arguments = "";
+    args.language = "en-US";
+    args.release_channels_mask = 0xf;
+    args.channel_search_kind = 0x0;
+    args.enable_tracking_prevention = false;
+
+    WebViewPreLaunchControllerWin::CacheWebViewCreationArguments(prelaunch_config, args);
+    prelaunch_config.close();
+
+    auto controller = WebViewPreLaunchController::Launch(prelaunch_config_path);
+    controller->WaitForLaunch();
+
+    // Test will fail if the destructor does not call join the prelaunch thread
+    controller.reset();
+}

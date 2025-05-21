@@ -40,6 +40,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 WebViewPreLaunchControllerWin::WebViewPreLaunchControllerWin() : semaphore_(0) {}
 
+WebViewPreLaunchControllerWin::~WebViewPreLaunchControllerWin() {
+    if (!background_thread_should_exit_) {
+        Close(/*wait_for_browser_process_exit*/false);
+        WaitForClose();
+    }
+}
+
 HWND WebViewPreLaunchControllerWin::CreateMessageWindow() {
     // Define the window class
     const char CLASS_NAME[] = "WebViewPreLaunchClass";
