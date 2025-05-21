@@ -41,7 +41,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 WebViewPreLaunchControllerWin::WebViewPreLaunchControllerWin() : semaphore_(0) {}
 
 WebViewPreLaunchControllerWin::~WebViewPreLaunchControllerWin() {
-    if (!background_thread_should_exit_) {
+    if (launch_thread_.joinable()) {
         Close(/*wait_for_browser_process_exit*/false);
         WaitForClose();
     }
