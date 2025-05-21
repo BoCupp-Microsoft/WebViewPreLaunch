@@ -40,7 +40,7 @@ public:
   static std::shared_ptr<WebViewPreLaunchController> Launch(
     const std::filesystem::path& cache_args_path);
 
-  virtual std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(
+  virtual const std::optional<WebViewCreationArguments>& ReadCachedWebViewCreationArguments(
     const std::filesystem::path& cache_args_path) noexcept = 0;
   virtual void CacheWebViewCreationArguments(const std::filesystem::path& cache_args_path,
                                              const WebViewCreationArguments& args) noexcept = 0;

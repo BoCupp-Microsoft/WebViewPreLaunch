@@ -265,7 +265,7 @@ catch(...) {
     HandleException(ce, telemetry_, "Unknown exception occurred in CacheWebViewCreationArguments");
 }
 
-std::optional<WebViewCreationArguments> WebViewPreLaunchControllerWin::ReadCachedWebViewCreationArguments(const std::filesystem::path& cache_args_path) noexcept try {
+const std::optional<WebViewCreationArguments>& WebViewPreLaunchControllerWin::ReadCachedWebViewCreationArguments(const std::filesystem::path& cache_args_path) noexcept try {
     std::ifstream cache_file(cache_args_path);
     cache_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
@@ -278,7 +278,8 @@ std::optional<WebViewCreationArguments> WebViewPreLaunchControllerWin::ReadCache
 catch(...) {
     auto ce = std::current_exception();
     HandleException(ce, telemetry_, "Unknown exception occurred in ReadCachedWebViewCreationArguments");
-    return std::nullopt;
+    cached_args_ = std::nullopt;
+    return cached_args_;
 }
 
 const WebViewPreLaunchTelemetry& WebViewPreLaunchControllerWin::GetTelemetry() const {

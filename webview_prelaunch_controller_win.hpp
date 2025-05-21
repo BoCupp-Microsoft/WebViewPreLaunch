@@ -46,7 +46,7 @@ public:
     void Close(bool wait_for_browser_process_exit) override;
     void WaitForClose() override;
 
-    std::optional<WebViewCreationArguments> ReadCachedWebViewCreationArguments(const std::filesystem::path& cache_args_path) noexcept override;
+    const std::optional<WebViewCreationArguments>& ReadCachedWebViewCreationArguments(const std::filesystem::path& cache_args_path) noexcept override;
     void CacheWebViewCreationArguments(const std::filesystem::path& cache_args_path, const WebViewCreationArguments& args) noexcept override;
 
     const WebViewPreLaunchTelemetry& GetTelemetry() const override;
